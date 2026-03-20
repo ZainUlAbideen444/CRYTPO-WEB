@@ -1,174 +1,203 @@
-// Dashboard.jsx — Main dashboard page
-import { useState } from 'react';
-import { TrendingUp, TrendingDown, DollarSign, Activity, ArrowUpRight, ArrowDownRight, Zap, RefreshCw } from 'lucide-react';
-import { portfolioStats, portfolioGrowthData, portfolioHoldings, topMovers, cryptoMarket, userProfile } from '../../data/mockData';
-import { PortfolioAreaChart } from '../../components/ChartComponent/ChartComponent';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { TrendingUp, TrendingDown, DollarSign, Activity, ArrowUpRight, ArrowDownRight, Zap, RefreshCw, Package } from "lucide-react";
+import { portfolioAPI } from "../../api";
+import { useAuth } from "../../context/AuthContext";
 
-// Stat Card
-const StatCard = ({ icon: Icon, label, value, sub, subPositive, iconColor }) => (
-  <div className="stat-card">
-    <div className="flex items-start justify-between mb-3">
-      <div className="w-9 h-9 rounded-xl flex items-center justify-center"
-        style={{ background: `${iconColor}15`, border: `1px solid ${iconColor}25` }}>
-        <Icon size={16} style={{ color: iconColor }} />
-      </div>
-      {sub !== undefined && (
-        <div className={`flex items-center gap-0.5 text-xs font-bold ${subPositive ? 'price-up' : 'price-down'}`}>
-          {subPositive ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
-          {sub}
+function StatCard({ icon: Icon, label, value, sub, subPositive, iconColor }) {
+  return (
+    <div className="stat-card">
+      <div className="flex items-start justify-between mb-3">
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+          style={{ background: `${iconColor}15`, border: `1px solid ${iconColor}25` }}>
+          <Icon size={16} style={{ color: iconColor }} />
         </div>
-      )}
+        {sub && (
+          <div className={`flex items-center gap-0.5 text-xs font-bold ${subPositive ? "price-up" : "price-down"}`}>
+            {subPositive ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
+            {sub}
+          </div>
+        )}
+      </div>
+      <div className="font-mono text-xl font-bold text-white mb-0.5">{value}</div>
+      <div className="text-xs text-white/40">{label}</div>
     </div>
-    <div className="font-mono text-xl font-bold text-white mb-0.5">{value}</div>
-    <div className="text-xs text-white/40">{label}</div>
-  </div>
-);
+  );
+}
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [timeframe, setTimeframe] = useState('1M');
-  const timeframes = ['1W', '1M', '3M', 'ALL'];
+  const { user } = useAuth();
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await portfolioAPI.getDashboard();
+      setStats(res.data);
+    } catch (e) {
+      setError("Could not load dashboard. Is the server running?");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  if (loading) return (
+    <div className="flex-1 flex items-center justify-center p-12">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-8 h-8 border-2 border-red-500/30 border-t-red-500 rounded-full animate-spin" />
+        <span className="text-white/30 text-sm">Loading your dashboard...</span>
+      </div>
+    </div>
+  );
+
+  if (error) return (
+    <div className="p-6">
+      <div className="glass-card p-8 text-center" style={{ border: "1px solid rgba(239,68,68,0.2)" }}>
+        <p className="text-red-400 mb-3">{error}</p>
+        <button onClick={load} className="btn-primary px-6 py-2 rounded-xl text-sm">Retry</button>
+      </div>
+    </div>
+  );
+
+  const pnlPositive = (stats?.totalPnL || 0) >= 0;
+  const hasHoldings = (stats?.holdingsCount || 0) > 0;
 
   return (
     <div className="p-6 space-y-6 animate-fade-in-up">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-display text-2xl font-bold text-white">Dashboard</h1>
-          <p className="text-white/40 text-sm mt-0.5">Welcome back, {userProfile.username}</p>
+          <p className="text-white/40 text-sm mt-0.5">Welcome back, {user?.name}</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs text-white/50 hover:text-white transition-all"
-          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
+        <button onClick={load} className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs text-white/50 hover:text-white transition-all"
+          style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
           <RefreshCw size={12} /> Refresh
         </button>
       </div>
 
-      {/* Stats Grid */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-        <StatCard icon={DollarSign} label="Portfolio Value" value={`$${(portfolioStats.totalValue).toLocaleString()}`}
-          sub={`+${portfolioStats.dayChangePercent}%`} subPositive iconColor="#ef4444" />
-        <StatCard icon={TrendingUp} label="Total P&L" value={`+$${portfolioStats.totalPnL.toLocaleString()}`}
-          sub={`+${portfolioStats.pnlPercent}%`} subPositive iconColor="#4ade80" />
-        <StatCard icon={Activity} label="Day Change" value={`+$${portfolioStats.dayChange.toLocaleString()}`}
-          sub={`+${portfolioStats.dayChangePercent}%`} subPositive iconColor="#60a5fa" />
-        <StatCard icon={Zap} label="Available Balance" value={`$${portfolioStats.availableBalance.toLocaleString()}`}
-          sub={`${portfolioStats.winRate}% win rate`} subPositive iconColor="#f59e0b" />
+        <StatCard icon={DollarSign} label="Total Account Value"
+          value={`$${Number(stats?.totalAccountValue || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          sub={`${pnlPositive ? "+" : ""}${Number(stats?.pnlPercent || 0).toFixed(2)}%`}
+          subPositive={pnlPositive} iconColor="#ef4444" />
+        <StatCard icon={pnlPositive ? TrendingUp : TrendingDown} label="Total P&L"
+          value={`${pnlPositive ? "+" : ""}$${Number(Math.abs(stats?.totalPnL || 0)).toFixed(2)}`}
+          sub={`${pnlPositive ? "+" : ""}${Number(stats?.pnlPercent || 0).toFixed(2)}%`}
+          subPositive={pnlPositive} iconColor={pnlPositive ? "#4ade80" : "#ef4444"} />
+        <StatCard icon={Activity} label="Total Trades"
+          value={stats?.totalTrades || 0}
+          sub={`${stats?.buyCount || 0}B / ${stats?.sellCount || 0}S`}
+          subPositive iconColor="#60a5fa" />
+        <StatCard icon={Zap} label="Cash Available"
+          value={`$${Number(user?.virtualBalance || 0).toFixed(2)}`}
+          sub={`${stats?.holdingsCount || 0} assets held`}
+          subPositive iconColor="#f59e0b" />
       </div>
 
-      {/* Chart + Top Movers */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-        {/* Portfolio Chart */}
-        <div className="xl:col-span-2 glass-card p-5">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="font-semibold text-white text-sm">Portfolio Growth</h2>
-              <p className="text-xs text-white/30 mt-0.5 font-mono">+${portfolioStats.totalPnL.toLocaleString()} total return</p>
-            </div>
-            <div className="flex gap-1">
-              {timeframes.map(t => (
-                <button key={t} onClick={() => setTimeframe(t)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${timeframe === t ? 'text-white' : 'text-white/30 hover:text-white/60'}`}
-                  style={timeframe === t ? { background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444' }
-                    : { background: 'transparent' }}>
-                  {t}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="h-52">
-            <PortfolioAreaChart data={portfolioGrowthData} />
-          </div>
+      {!hasHoldings ? (
+        <div className="glass-card p-12 text-center">
+          <Package size={40} className="text-white/10 mx-auto mb-4" />
+          <h2 className="text-white font-semibold mb-2">No holdings yet</h2>
+          <p className="text-white/40 text-sm mb-6">You have ${Number(user?.virtualBalance || 0).toFixed(2)} ready to invest.</p>
+          <button onClick={() => navigate("/trade")} className="btn-primary px-8 py-3 rounded-xl text-sm font-bold">
+            Start Trading
+          </button>
         </div>
-
-        {/* Top Movers */}
-        <div className="glass-card p-5">
-          <h2 className="font-semibold text-white text-sm mb-4">Top Movers</h2>
-          <div className="space-y-2">
-            {topMovers.map(m => (
-              <div key={m.symbol} className="flex items-center justify-between py-2 px-3 rounded-lg table-row-hover cursor-pointer transition-all"
-                onClick={() => navigate('/trade')}>
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
-                    style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>
-                    {m.symbol.slice(0, 1)}
+      ) : (
+        <>
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+            <div className="xl:col-span-2 glass-card p-5">
+              <h2 className="font-semibold text-white text-sm mb-1">Portfolio Value</h2>
+              <p className="text-xs text-white/30 mb-4">${Number(stats?.portfolioValue || 0).toFixed(2)} in holdings + ${Number(user?.virtualBalance || 0).toFixed(2)} cash</p>
+              <div className="grid grid-cols-3 gap-4">
+                {[
+                  { label: "Invested", value: `$${Number(stats?.totalInvested || 0).toFixed(2)}`, color: "#60a5fa" },
+                  { label: "Current", value: `$${Number(stats?.portfolioValue || 0).toFixed(2)}`, color: "#4ade80" },
+                  { label: "P&L", value: `${pnlPositive ? "+" : ""}$${Number(stats?.totalPnL || 0).toFixed(2)}`, color: pnlPositive ? "#4ade80" : "#ef4444" },
+                ].map(m => (
+                  <div key={m.label} className="glass-card p-4 text-center">
+                    <div className="font-mono text-lg font-bold" style={{ color: m.color }}>{m.value}</div>
+                    <div className="text-xs text-white/40 mt-1">{m.label}</div>
                   </div>
-                  <span className="font-mono text-sm font-bold text-white">{m.symbol}</span>
-                </div>
-                <div className="text-right">
-                  <div className="font-mono text-xs text-white">${typeof m.price === 'number' && m.price > 1 ? m.price.toLocaleString() : m.price}</div>
-                  <div className={`text-xs font-bold ${m.change >= 0 ? 'price-up' : 'price-down'}`}>
-                    {m.change >= 0 ? '+' : ''}{m.change}%
-                  </div>
-                </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Holdings preview + Market Overview */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        {/* Holdings */}
-        <div className="glass-card p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-white text-sm">My Holdings</h2>
-            <button onClick={() => navigate('/portfolio')} className="text-xs text-red-500 hover:text-red-400">View All →</button>
-          </div>
-          <div className="space-y-2">
-            {portfolioHoldings.slice(0, 4).map(h => {
-              const val = h.quantity * h.currentPrice;
-              const pnl = val - h.quantity * h.avgBuyPrice;
-              const isPos = pnl >= 0;
-              return (
-                <div key={h.symbol} className="flex items-center justify-between py-2 px-3 rounded-lg table-row-hover">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
-                      style={{ background: `${h.color}22`, color: h.color }}>
-                      {h.symbol.slice(0, 1)}
-                    </div>
+            </div>
+            <div className="glass-card p-5">
+              <h2 className="font-semibold text-white text-sm mb-4">Top Performers</h2>
+              <div className="space-y-3">
+                {stats?.bestPerformer && (
+                  <div className="flex items-center justify-between">
                     <div>
-                      <div className="font-mono text-xs font-bold text-white">{h.symbol}</div>
-                      <div className="text-xs text-white/30 font-mono">{h.quantity} {h.symbol}</div>
+                      <div className="text-xs text-white/40">Best</div>
+                      <div className="font-mono text-sm font-bold text-white">{stats.bestPerformer.symbol}</div>
                     </div>
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-full badge-buy">
+                      +{stats.bestPerformer.pnlPct}%
+                    </span>
                   </div>
-                  <div className="text-right">
-                    <div className="font-mono text-xs font-bold text-white">${val.toFixed(2)}</div>
-                    <div className={`text-xs ${isPos ? 'price-up' : 'price-down'}`}>{isPos ? '+' : ''}${pnl.toFixed(2)}</div>
+                )}
+                {stats?.worstPerformer && stats.worstPerformer.symbol !== stats.bestPerformer?.symbol && (
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-xs text-white/40">Worst</div>
+                      <div className="font-mono text-sm font-bold text-white">{stats.worstPerformer.symbol}</div>
+                    </div>
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-full badge-sell">
+                      {stats.worstPerformer.pnlPct}%
+                    </span>
                   </div>
-                </div>
-              );
-            })}
+                )}
+              </div>
+            </div>
           </div>
-        </div>
 
-        {/* Market Overview */}
-        <div className="glass-card p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-white text-sm">Market Overview</h2>
-            <button onClick={() => navigate('/market')} className="text-xs text-red-500 hover:text-red-400">Full Market →</button>
-          </div>
-          <div className="space-y-2">
-            {cryptoMarket.slice(0, 5).map(c => {
-              const isPos = c.change24h >= 0;
-              return (
-                <div key={c.symbol} className="flex items-center justify-between py-2 px-3 rounded-lg table-row-hover cursor-pointer"
-                  onClick={() => navigate('/trade')}>
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
-                      style={{ background: `${c.color}22`, color: c.color }}>
-                      {c.symbol.slice(0, 1)}
-                    </div>
-                    <span className="font-mono text-xs font-bold text-white">{c.symbol}</span>
-                  </div>
-                  <span className="font-mono text-xs text-white/60">${c.price > 1 ? c.price.toLocaleString() : c.price}</span>
-                  <div className={`text-xs font-bold px-2 py-0.5 rounded-full ${isPos ? 'badge-buy' : 'badge-sell'}`}>
-                    {isPos ? '+' : ''}{c.change24h}%
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          {stats?.recentTransactions?.length > 0 && (
+            <div className="glass-card overflow-hidden">
+              <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between">
+                <h2 className="font-semibold text-white text-sm">Recent Trades</h2>
+                <button onClick={() => navigate("/transactions")} className="text-xs text-red-500 hover:text-red-400">View all</button>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead><tr className="border-b border-white/5">
+                    {["Type", "Coin", "Amount", "Price", "Total", "Date"].map(h => (
+                      <th key={h} className="px-5 py-3 text-left text-xs text-white/30 font-semibold tracking-wider">{h}</th>
+                    ))}
+                  </tr></thead>
+                  <tbody>
+                    {stats.recentTransactions.map(tx => (
+                      <tr key={tx._id} className="border-b table-row-hover" style={{ borderColor: "rgba(255,255,255,0.03)" }}>
+                        <td className="px-5 py-3">
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${tx.type === "buy" ? "badge-buy" : "badge-sell"}`}>
+                            {tx.type.toUpperCase()}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3 font-mono text-sm font-bold text-white">{tx.coinSymbol}</td>
+                        <td className="px-5 py-3 font-mono text-sm text-white/70">{Number(tx.quantity).toFixed(6)}</td>
+                        <td className="px-5 py-3 font-mono text-sm text-white/50">${Number(tx.price).toLocaleString()}</td>
+                        <td className="px-5 py-3 font-mono text-sm font-bold text-white">${Number(tx.total).toFixed(2)}</td>
+                        <td className="px-5 py-3 font-mono text-xs text-white/40">{new Date(tx.createdAt).toLocaleDateString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      <div className="glass-card p-5">
+        <div className="flex flex-wrap gap-3">
+          <button onClick={() => navigate("/trade")} className="btn-primary px-6 py-2.5 rounded-xl text-sm font-bold">Buy / Sell</button>
+          <button onClick={() => navigate("/portfolio")} className="btn-secondary px-6 py-2.5 rounded-xl text-sm">View Portfolio</button>
+          <button onClick={() => navigate("/analytics")} className="btn-secondary px-6 py-2.5 rounded-xl text-sm">Performance</button>
         </div>
       </div>
     </div>

@@ -1,6 +1,6 @@
-// TradeForm.jsx — Buy/Sell form with modal confirmation
+// TradeForm.jsx — Buy/Sell form with balance cap enforcement
 import { useState } from 'react';
-import { AlertCircle, CheckCircle, X } from 'lucide-react';
+import { AlertCircle, CheckCircle, X, AlertTriangle } from 'lucide-react';
 
 export default function TradeForm({ coin, balance, onTrade }) {
   const [side, setSide] = useState('BUY');
@@ -8,17 +8,35 @@ export default function TradeForm({ coin, balance, onTrade }) {
   const [total, setTotal] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [tradeSuccess, setTradeSuccess] = useState(false);
+  const [validationError, setValidationError] = useState('');
 
   const handleAmountChange = (val) => {
+    setValidationError('');
     setAmount(val);
     if (val && coin?.price) setTotal((parseFloat(val) * coin.price).toFixed(2));
     else setTotal('');
   };
 
   const handleTotalChange = (val) => {
+    setValidationError('');
     setTotal(val);
     if (val && coin?.price) setAmount((parseFloat(val) / coin.price).toFixed(8));
     else setAmount('');
+  };
+
+  const validateTrade = () => {
+    if (!amount || !total) { setValidationError('Enter an amount to trade'); return false; }
+    if (parseFloat(amount) <= 0 || parseFloat(total) <= 0) { setValidationError('Amount must be greater than 0'); return false; }
+    if (side === 'BUY' && parseFloat(total) > balance) {
+      setValidationError(`Insufficient balance. Max: $${balance.toFixed(2)}`);
+      return false;
+    }
+    return true;
+  };
+
+  const handleSubmit = () => {
+    if (!validateTrade()) return;
+    setShowModal(true);
   };
 
   const confirmTrade = () => {
@@ -29,28 +47,35 @@ export default function TradeForm({ coin, balance, onTrade }) {
       setTradeSuccess(false);
       setAmount('');
       setTotal('');
+      setValidationError('');
     }, 3000);
   };
 
   const percentButtons = [25, 50, 75, 100];
 
+  // Max buy based on balance
+  const maxBuy = balance || 0;
+  const totalNum = parseFloat(total) || 0;
+  const isOverBudget = side === 'BUY' && totalNum > maxBuy;
+
   return (
     <div>
       {/* Side Toggle */}
-      <div className="flex rounded-lg overflow-hidden mb-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
-        <button onClick={() => setSide('BUY')}
-          className={`flex-1 py-2.5 text-sm font-bold font-sans tracking-wider transition-all ${side === 'BUY' ? 'text-white' : 'text-white/30'}`}
-          style={side === 'BUY' ? { background: 'linear-gradient(135deg, #16a34a, #15803d)', boxShadow: '0 0 20px rgba(22,163,74,0.3)' } : {}}>
+      <div className="flex rounded-lg overflow-hidden mb-4"
+        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
+        <button onClick={() => { setSide('BUY'); setValidationError(''); }}
+          className={`flex-1 py-2.5 text-sm font-bold tracking-wider transition-all ${side === 'BUY' ? 'text-white' : 'text-white/30'}`}
+          style={side === 'BUY' ? { background: 'linear-gradient(135deg,#16a34a,#15803d)', boxShadow: '0 0 20px rgba(22,163,74,0.3)' } : {}}>
           BUY
         </button>
-        <button onClick={() => setSide('SELL')}
-          className={`flex-1 py-2.5 text-sm font-bold font-sans tracking-wider transition-all ${side === 'SELL' ? 'text-white' : 'text-white/30'}`}
-          style={side === 'SELL' ? { background: 'linear-gradient(135deg, #ef4444, #dc2626)', boxShadow: '0 0 20px rgba(239,68,68,0.3)' } : {}}>
+        <button onClick={() => { setSide('SELL'); setValidationError(''); }}
+          className={`flex-1 py-2.5 text-sm font-bold tracking-wider transition-all ${side === 'SELL' ? 'text-white' : 'text-white/30'}`}
+          style={side === 'SELL' ? { background: 'linear-gradient(135deg,#ef4444,#dc2626)', boxShadow: '0 0 20px rgba(239,68,68,0.3)' } : {}}>
           SELL
         </button>
       </div>
 
-      {/* Price Display */}
+      {/* Price */}
       {coin && (
         <div className="flex justify-between items-center mb-4 px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)' }}>
           <span className="text-xs text-white/40">Market Price</span>
@@ -61,21 +86,17 @@ export default function TradeForm({ coin, balance, onTrade }) {
       {/* Amount Input */}
       <div className="mb-3">
         <label className="text-xs text-white/40 mb-1.5 block tracking-wider">AMOUNT ({coin?.symbol || 'COIN'})</label>
-        <input
-          type="number"
-          value={amount}
-          onChange={(e) => handleAmountChange(e.target.value)}
-          placeholder="0.00"
-          className="input-dark w-full px-3 py-2.5 rounded-lg text-sm font-mono"
-        />
+        <input type="number" value={amount} onChange={e => handleAmountChange(e.target.value)}
+          placeholder="0.00000000" min="0"
+          className="input-dark w-full px-3 py-2.5 rounded-lg text-sm font-mono" />
       </div>
 
-      {/* Percent shortcuts */}
+      {/* Percent Shortcuts */}
       <div className="flex gap-2 mb-3">
         {percentButtons.map(p => (
           <button key={p} onClick={() => {
-            if (balance && coin?.price) {
-              const t = (balance * p / 100);
+            if (maxBuy && coin?.price) {
+              const t = (maxBuy * p / 100);
               handleTotalChange(t.toFixed(2));
             }
           }}
@@ -87,36 +108,60 @@ export default function TradeForm({ coin, balance, onTrade }) {
       </div>
 
       {/* Total Input */}
-      <div className="mb-4">
+      <div className="mb-2">
         <label className="text-xs text-white/40 mb-1.5 block tracking-wider">TOTAL (USDT)</label>
-        <input
-          type="number"
-          value={total}
-          onChange={(e) => handleTotalChange(e.target.value)}
-          placeholder="0.00"
-          className="input-dark w-full px-3 py-2.5 rounded-lg text-sm font-mono"
-        />
+        <input type="number" value={total} onChange={e => handleTotalChange(e.target.value)}
+          placeholder="0.00" min="0"
+          className={`input-dark w-full px-3 py-2.5 rounded-lg text-sm font-mono transition-all ${isOverBudget ? 'border-red-500/50' : ''}`}
+          style={isOverBudget ? { borderColor: 'rgba(239,68,68,0.5)' } : {}} />
       </div>
+
+      {/* Budget bar when buying */}
+      {side === 'BUY' && totalNum > 0 && (
+        <div className="mb-3">
+          <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+            <div className="h-full rounded-full transition-all duration-300"
+              style={{
+                width: `${Math.min((totalNum / maxBuy) * 100, 100)}%`,
+                background: isOverBudget ? '#ef4444' : 'linear-gradient(90deg,#4ade80,#16a34a)',
+              }} />
+          </div>
+          <div className="flex justify-between mt-1">
+            <span className={`text-xs font-mono ${isOverBudget ? 'text-red-400' : 'text-white/30'}`}>
+              {((totalNum / maxBuy) * 100).toFixed(1)}% of balance
+            </span>
+            {isOverBudget && <span className="text-xs text-red-400 font-semibold">Over budget!</span>}
+          </div>
+        </div>
+      )}
 
       {/* Balance */}
       <div className="flex justify-between text-xs mb-4">
         <span className="text-white/30">Available</span>
-        <span className="font-mono text-white/60">${balance?.toLocaleString()} USDT</span>
+        <span className="font-mono font-bold" style={{ color: isOverBudget ? '#ef4444' : 'rgba(255,255,255,0.6)' }}>
+          ${maxBuy.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT
+        </span>
       </div>
 
+      {/* Validation Error */}
+      {validationError && (
+        <div className="mb-3 flex items-center gap-2 px-3 py-2 rounded-lg"
+          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
+          <AlertTriangle size={12} className="text-red-400 flex-shrink-0" />
+          <span className="text-xs text-red-400">{validationError}</span>
+        </div>
+      )}
+
       {/* Submit */}
-      <button
-        onClick={() => { if (amount && total) setShowModal(true); }}
-        disabled={!amount || !total || !coin}
-        className={`w-full py-3 rounded-xl font-bold text-sm tracking-wider transition-all ${!amount || !total ? 'opacity-40 cursor-not-allowed' : ''}`}
+      <button onClick={handleSubmit} disabled={!coin}
+        className={`w-full py-3 rounded-xl font-bold text-sm tracking-wider transition-all ${!amount || !total || isOverBudget ? 'opacity-50 cursor-not-allowed' : ''}`}
         style={side === 'BUY'
-          ? { background: 'linear-gradient(135deg, #16a34a, #15803d)', boxShadow: amount && total ? '0 0 20px rgba(22,163,74,0.2)' : 'none', color: 'white' }
-          : { background: 'linear-gradient(135deg, #ef4444, #dc2626)', boxShadow: amount && total ? '0 0 20px rgba(239,68,68,0.2)' : 'none', color: 'white' }
-        }>
+          ? { background: 'linear-gradient(135deg,#16a34a,#15803d)', color: 'white', boxShadow: amount && total && !isOverBudget ? '0 0 20px rgba(22,163,74,0.2)' : 'none' }
+          : { background: 'linear-gradient(135deg,#ef4444,#dc2626)', color: 'white', boxShadow: amount && total ? '0 0 20px rgba(239,68,68,0.2)' : 'none' }}>
         {side} {coin?.symbol || 'COIN'}
       </button>
 
-      {/* Success Banner */}
+      {/* Success */}
       {tradeSuccess && (
         <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-lg animate-fade-in-up"
           style={{ background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.2)' }}>
@@ -141,7 +186,8 @@ export default function TradeForm({ coin, balance, onTrade }) {
                 ['Coin', coin?.symbol || '', 'text-white'],
                 ['Amount', `${parseFloat(amount).toFixed(8)} ${coin?.symbol}`, 'text-white font-mono'],
                 ['Price', `$${coin?.price.toLocaleString()}`, 'text-white font-mono'],
-                ['Total', `$${parseFloat(total).toLocaleString()}`, 'text-yellow-400 font-mono font-bold'],
+                ['Total', `$${parseFloat(total).toFixed(2)}`, 'text-yellow-400 font-mono font-bold'],
+                ['Remaining', `$${(maxBuy - parseFloat(total)).toFixed(2)}`, 'text-white/60 font-mono'],
               ].map(([label, val, cls]) => (
                 <div key={label} className="flex justify-between">
                   <span className="text-xs text-white/40">{label}</span>
@@ -153,7 +199,7 @@ export default function TradeForm({ coin, balance, onTrade }) {
             <div className="flex items-center gap-2 mb-5 px-3 py-2 rounded-lg"
               style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)' }}>
               <AlertCircle size={12} className="text-red-400 flex-shrink-0" />
-              <p className="text-xs text-white/50">This is a simulated trade. No real money involved.</p>
+              <p className="text-xs text-white/50">This is a virtual trade. No real money involved.</p>
             </div>
 
             <div className="flex gap-2">
@@ -161,8 +207,8 @@ export default function TradeForm({ coin, balance, onTrade }) {
               <button onClick={confirmTrade}
                 className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white transition-all"
                 style={side === 'BUY'
-                  ? { background: 'linear-gradient(135deg, #16a34a, #15803d)' }
-                  : { background: 'linear-gradient(135deg, #ef4444, #dc2626)' }}>
+                  ? { background: 'linear-gradient(135deg,#16a34a,#15803d)' }
+                  : { background: 'linear-gradient(135deg,#ef4444,#dc2626)' }}>
                 Confirm {side}
               </button>
             </div>

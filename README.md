@@ -1,126 +1,57 @@
-🚀 CryptoWEB — Cryptocurrency Trading Simulator
+# CryptoWeb — Virtual Crypto Trading Platform
 
-Final Year Project | React + Tailwind CSS | Professional Crypto Trading Dashboard
+Full-stack MERN app: React + Node.js + MongoDB + JWT Auth + Live CoinGecko API
 
-📌 Project Overview
+## Quick Start
 
-CryptoWEB is a web-based cryptocurrency trading simulator designed for aspiring traders and students. It provides a realistic trading experience with portfolio management, live market data visualization, trading interface, and performance analytics — all powered by React, Tailwind CSS, and Recharts.
+### 1. Start MongoDB
+Make sure MongoDB is running locally:
+```bash
+mongod
+```
 
-This project is frontend-focused, fully functional using mock data, but structured to easily integrate a backend API.
-
-📁 Project Structure
-crypto-simulator/
-├── public/
-├── src/
-│   ├── components/
-│   │   ├── Sidebar/         — Collapsible navigation sidebar
-│   │   ├── Navbar/          — Top bar with ticker, notifications, profile
-│   │   ├── CryptoCard/      — Coin card with sparkline chart
-│   │   ├── TradeForm/       — Buy/Sell form with confirmation modal
-│   │   ├── PortfolioCard/   — Individual holding card
-│   │   └── ChartComponent/  — Recharts wrappers (Area, Bar, Pie, Line)
-│   ├── pages/
-│   │   ├── Landing/         — Hero landing page
-│   │   ├── Login/           — Login form
-│   │   ├── Register/        — Registration form
-│   │   ├── Dashboard/       — Portfolio overview
-│   │   ├── Market/          — Full crypto market table
-│   │   ├── Trade/           — Trading interface + order book
-│   │   ├── Portfolio/       — Holdings + allocation charts
-│   │   ├── Transactions/    — Trade history table
-│   │   └── Analytics/       — Performance charts & KPIs
-│   ├── data/
-│   │   └── mockData.js      — All mock data (prices, portfolio, transactions)
-│   ├── App.jsx              — Router & layout
-│   ├── main.jsx             — Entry point
-│   └── index.css            — Global styles + Tailwind
-├── index.html
-├── package.json
-├── tailwind.config.js
-├── postcss.config.js
-└── vite.config.js
-⚙️ Installation & Setup
-Prerequisites
-
-Node.js ≥ 16
-
-npm ≥ 8
-
-Setup
-# 1. Navigate to project folder
-cd crypto-simulator
-
-# 2. Install dependencies
+### 2. Backend (server)
+```bash
+cd server
 npm install
+node server.js
+# Runs on http://localhost:5000
+```
 
-# 3. Start development server
+### 3. Frontend (React)
+```bash
+npm install
 npm run dev
+# Runs on http://localhost:5173
+```
 
-The app will run at: http://localhost:5173
+## Architecture
+- **Frontend**: React 18 + Vite + Tailwind CSS
+- **Backend**: Node.js + Express
+- **Database**: MongoDB + Mongoose
+- **Auth**: JWT (stored in localStorage)
+- **Market Data**: CoinGecko API (with offline fallback)
 
-Build for Production
-npm run build
-npm run preview
-🔐 Demo Login
+## Features
+- ✅ Real user registration & login (JWT)
+- ✅ $1,000 virtual balance stored in MongoDB
+- ✅ Live crypto prices from CoinGecko
+- ✅ Buy/sell trades stored per user
+- ✅ Portfolio shows only YOUR holdings
+- ✅ Transactions shows only YOUR trade history
+- ✅ Analytics: win/loss from YOUR real trades
+- ✅ Dashboard: YOUR real P&L and balance
+- ✅ Settings: YOUR account info
 
-Use any credentials to log in, or use the demo account:
-
-Email: demo@cryptosim.io
-
-Password: demo1234
-
-Note: This is a frontend-only version; authentication is simulated.
-
-📄 Pages Overview
-Page	Path	Description
-Landing	/	Hero page with features
-Login	/login	Login form
-Register	/register	Registration with validation
-Dashboard	/dashboard	Portfolio overview + charts
-Market	/market	Full crypto market table
-Trade	/trade	Buy/Sell interface + order book
-Portfolio	/portfolio	Holdings + allocation charts
-Transactions	/transactions	Trade history with filters
-Analytics	/analytics	Charts + performance KPIs
-🎨 Tech Stack
-
-React 18 — Modern UI library
-
-Vite — Lightning-fast build tool
-
-Tailwind CSS — Utility-first styling
-
-Recharts — Dynamic charts (Area, Bar, Pie, Line)
-
-React Router v6 — Client-side routing
-
-Lucide React — Clean icons
-
-Axios — HTTP requests (ready for backend integration)
-
-🔌 Backend Integration Guide
-
-Currently, all data is sourced from src/data/mockData.js. To connect a real backend:
-
-Replace mock imports with Axios API calls.
-
-Example:
-
-// Before (mock)
-import { cryptoMarket } from '../../data/mockData';
-
-// After (backend)
-const [cryptoMarket, setCryptoMarket] = useState([]);
-
-useEffect(() => {
-  axios.get('/api/market').then(res => setCryptoMarket(res.data));
-}, []);
-
-Add authentication tokens (JWT) in Axios interceptors.
-
-Backend-ready structure allows you to expand into a fully functional crypto trading platform.
-
-👨‍💻 Author
-
-Zain Ul Abideen — BSc Computer Science
-CryptoSim Trading Simulator v1.0 — Professional frontend crypto web app
+## API Endpoints
+```
+POST /api/auth/register
+POST /api/auth/login
+GET  /api/auth/me
+GET  /api/market
+POST /api/trade/buy
+POST /api/trade/sell
+GET  /api/portfolio
+GET  /api/portfolio/dashboard
+GET  /api/portfolio/transactions
+```

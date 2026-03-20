@@ -27,7 +27,7 @@ const UserSchema = new mongoose.Schema(
     },
     virtualBalance: {
       type: Number,
-      default: 10000, // Starting USDT balance
+      default: 1000, // Starting USDT balance
       min: [0, 'Balance cannot be negative'],
     },
   },

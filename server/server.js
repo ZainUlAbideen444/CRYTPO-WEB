@@ -1,4 +1,4 @@
-// server.js — CryptoSim Backend Entry Point
+// server.js — CryptoWeb Backend Entry Point
 require('dotenv').config();
 const express = require('express');
 const cors    = require('cors');
@@ -59,7 +59,7 @@ app.use('/api/transactions', require('./middleware/authMiddleware').protect,
 app.get('/api/health', (_req, res) => {
   res.status(200).json({
     success: true,
-    message: 'CryptoSim API is running',
+    message: 'CryptoWeb API is running',
     timestamp: new Date().toISOString(),
   });
 });
@@ -95,7 +95,7 @@ app.use((err, _req, res, _next) => {
 // ── Start server ──────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`\n🚀 CryptoSim API running on http://localhost:${PORT}`);
+  console.log(`\n🚀 CryptoWeb API running on http://localhost:${PORT}`);
   console.log(`📋 Endpoints:`);
   console.log(`   POST /api/auth/register`);
   console.log(`   POST /api/auth/login`);
